@@ -1,5 +1,7 @@
 # 🎮 遊戲復盤網站
 
+https://zihuanfeng520.github.io/game-review/
+
 從 Google Drive 自動讀取遊戲復盤影片,依日期整理後顯示在 GitHub Pages 上。訪客不需要登入 Google 帳號即可觀看。
 
 ---
