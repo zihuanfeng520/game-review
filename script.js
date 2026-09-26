@@ -24,13 +24,21 @@ async function fetchJSON(url) {
   return res.json();
 }
 
-// 取得「遊戲復盤」底下所有符合 YYYY-MM-DD 命名的日期資料夾,依日期新到舊排序
-async function fetchDateFolders() {
+// 取得「遊戲復盤」底下所有子資料夾(不論命名格式)
+async function fetchAllFolders() {
   const q = `'${ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
   const data = await fetchJSON(driveListURL(q, "id,name"));
-  return (data.files || [])
-    .filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.name))
-    .sort((a, b) => b.name.localeCompare(a.name));
+  return data.files || [];
+}
+
+// 資料夾名稱符合 YYYY-MM-DD 就回傳這個日期;不符合回傳 null(代表要改用影片自己的上傳時間)
+function folderDateKey(folderName) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(folderName) ? folderName : null;
+}
+
+// 從 ISO 時間字串取出 YYYY-MM-DD
+function toDateKey(isoString) {
+  return isoString.slice(0, 10);
 }
 
 // 取得單一日期資料夾內的影片
@@ -68,21 +76,37 @@ async function loadAll() {
   root.innerHTML = '<p class="status">正在讀取 Google Drive…</p>';
 
   try {
-    const folders = await fetchDateFolders();
+    const folders = await fetchAllFolders();
     if (folders.length === 0) {
       root.innerHTML =
-        '<p class="status">找不到任何日期資料夾,請確認 Folder ID 與分享權限是否正確。</p>';
+        '<p class="status">找不到任何資料夾,請確認 Folder ID 與分享權限是否正確。</p>';
       return;
     }
 
-    const withVideos = await Promise.all(
-      folders.map(async (f) => ({
-        ...f,
-        videos: await fetchVideosInFolder(f.id),
-      }))
+    // dateKey (YYYY-MM-DD) -> videos[]
+    const dateMap = new Map();
+
+    await Promise.all(
+      folders.map(async (folder) => {
+        const videos = await fetchVideosInFolder(folder.id);
+        const namedDate = folderDateKey(folder.name);
+        for (const video of videos) {
+          // 資料夾名稱是 YYYY-MM-DD 格式就用資料夾的日期;
+          // 不是的話,改用這支影片自己的上傳時間當日期
+          const key = namedDate || toDateKey(video.createdTime);
+          if (!dateMap.has(key)) dateMap.set(key, []);
+          dateMap.get(key).push(video);
+        }
+      })
     );
 
-    state.folders = withVideos.filter((f) => f.videos.length > 0);
+    for (const videos of dateMap.values()) videos.sort(compareVideos);
+
+    state.folders = [...dateMap.entries()]
+      .filter(([, videos]) => videos.length > 0)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([name, videos]) => ({ name, videos }));
+
     render();
   } catch (err) {
     root.innerHTML = `<p class="status error">讀取失敗:${err.message}</p>`;
