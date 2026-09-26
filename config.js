@@ -3,5 +3,5 @@
 //   - 應用程式限制:HTTP 參照網址 → https://<你的帳號>.github.io/*
 //   - API 限制:只允許 Google Drive API
 
-const API_KEY = "貼上你的 Google API 金鑰";
-const ROOT_FOLDER_ID = "貼上「遊戲復盤」資料夾的 ID";
+const API_KEY = "AIzaSyBgKXf0FTRlHgzHfPEIMeNngUTGWQV7QXc";
+const ROOT_FOLDER_ID = "1AotLx-mN-CpzhMwLM1gEyI27vNk-snMe";
