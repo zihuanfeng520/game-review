@@ -187,6 +187,18 @@ function render() {
   }
 }
 
+// 相容各瀏覽器前綴,請求把該元素(連同裡面的 iframe)全螢幕顯示
+function requestFullscreenOn(el) {
+  const req =
+    el.requestFullscreen ||
+    el.webkitRequestFullscreen ||
+    el.mozRequestFullScreen ||
+    el.msRequestFullscreen;
+  if (!req) return;
+  const result = req.call(el);
+  if (result && result.catch) result.catch(() => {});
+}
+
 // 縮圖網址預設只有 220px 寬,換成大一點的尺寸比較清楚
 function largeThumbnail(url) {
   return url.replace(/=s\d+$/, "=s640");
@@ -229,7 +241,8 @@ function buildVideoCard(video) {
   }
 
   const startPlayback = () => {
-    frame.innerHTML = `<iframe src="https://drive.google.com/file/d/${video.id}/preview" allow="autoplay" allowfullscreen loading="lazy"></iframe>`;
+    frame.innerHTML = `<iframe src="https://drive.google.com/file/d/${video.id}/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`;
+    requestFullscreenOn(frame);
   };
   frame.addEventListener("click", startPlayback, { once: true });
 
