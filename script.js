@@ -41,7 +41,7 @@ function toDateKey(isoString) {
   return isoString.slice(0, 10);
 }
 
-// 取得單一日期資料夾內的影片
+// 取得單一資料夾內的影片(這個函式也會拿來查詢「遊戲復盤」根目錄本身)
 async function fetchVideosInFolder(folderId) {
   const q = `'${folderId}' in parents and mimeType contains 'video/' and trashed = false`;
   const data = await fetchJSON(
@@ -76,15 +76,28 @@ async function loadAll() {
   root.innerHTML = '<p class="status">正在讀取 Google Drive…</p>';
 
   try {
-    const folders = await fetchAllFolders();
-    if (folders.length === 0) {
+    // 「遊戲復盤」底下的子資料夾,以及直接放在根目錄本身的影片,兩者要同時查詢
+    const [folders, rootVideos] = await Promise.all([
+      fetchAllFolders(),
+      fetchVideosInFolder(ROOT_FOLDER_ID),
+    ]);
+
+    if (folders.length === 0 && rootVideos.length === 0) {
       root.innerHTML =
-        '<p class="status">找不到任何資料夾,請確認 Folder ID 與分享權限是否正確。</p>';
+        '<p class="status">找不到任何資料夾或影片,請確認 Folder ID 與分享權限是否正確。</p>';
       return;
     }
 
     // dateKey (YYYY-MM-DD) -> videos[]
     const dateMap = new Map();
+
+    // 根目錄本身直接放的影片,沒有「資料夾名稱」可以參考,
+    // 一律用該支影片自己的上傳時間分類(等同於「資料夾名稱不是 YYYY-MM-DD」的規則)
+    for (const video of rootVideos) {
+      const key = toDateKey(video.createdTime);
+      if (!dateMap.has(key)) dateMap.set(key, []);
+      dateMap.get(key).push(video);
+    }
 
     await Promise.all(
       folders.map(async (folder) => {
