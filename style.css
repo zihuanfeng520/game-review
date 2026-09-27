@@ -207,6 +207,11 @@ main {
   border: 0;
 }
 
+.video-frame.is-playing::before,
+.video-frame.is-playing::after {
+  display: none;
+}
+
 .video-frame:fullscreen,
 .video-frame:-webkit-full-screen,
 .video-frame:-moz-full-screen {
