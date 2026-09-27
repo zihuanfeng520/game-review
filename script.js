@@ -240,20 +240,31 @@ function buildVideoCard(video) {
     frame.appendChild(chip);
   }
 
-  const startPlayback = () => {
+  // 建立播放器 iframe,取代縮圖/播放圖示;playing 樣式用來把取景框裝飾隱藏掉
+  const embedPlayer = () => {
+    frame.classList.add("is-playing");
     frame.innerHTML = `<iframe src="https://drive.google.com/file/d/${video.id}/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`;
-    requestFullscreenOn(frame);
   };
-  frame.addEventListener("click", startPlayback, { once: true });
+
+  // 點縮圖/中間的播放圖示:只在原本的小窗格內嵌入預覽,不強制全螢幕
+  frame.addEventListener("click", embedPlayer, { once: true });
 
   const title = document.createElement("p");
   title.className = "video-title";
   title.textContent = video.name;
 
+  // 點下方這顆按鈕:直接全螢幕播放
   const button = document.createElement("button");
   button.className = "play-button";
-  button.textContent = "▶ 播放";
-  button.addEventListener("click", startPlayback, { once: true });
+  button.textContent = "⛶ 全螢幕播放";
+  button.addEventListener(
+    "click",
+    () => {
+      embedPlayer();
+      requestFullscreenOn(frame);
+    },
+    { once: true }
+  );
 
   card.append(frame, title, button);
   return card;
