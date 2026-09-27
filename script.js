@@ -281,6 +281,8 @@ document.getElementById("search-input").addEventListener("input", (e) => {
 const uploadButton = document.getElementById("upload-button");
 const uploadInput = document.getElementById("upload-input");
 const uploadStatus = document.getElementById("upload-status");
+const uploadProgress = document.getElementById("upload-progress");
+const uploadProgressBar = document.getElementById("upload-progress-bar");
 
 const hasClientId = typeof CLIENT_ID !== "undefined" && CLIENT_ID;
 
@@ -323,7 +325,50 @@ if (!hasClientId) {
     uploadStatus.classList.toggle("error", Boolean(isError));
   }
 
-  // 用 Drive 的 resumable upload:先建立上傳工作階段,再把檔案內容 PUT 上去
+  function setUploadProgress(percent) {
+    if (percent === null) {
+      uploadProgress.hidden = true;
+      uploadProgressBar.style.width = "0%";
+      return;
+    }
+    uploadProgress.hidden = false;
+    uploadProgressBar.style.width = `${percent}%`;
+  }
+
+  // fetch 拿不到上傳進度,這裡改用 XHR 才能監聽 upload.onprogress
+  function putFileWithProgress(uploadUrl, file) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", file.type);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText || "{}"));
+          return;
+        }
+        let message = `上傳檔案失敗 (${xhr.status})`;
+        try {
+          const err = JSON.parse(xhr.responseText);
+          if (err.error?.message) message = err.error.message;
+        } catch (_) {
+          /* 回應不是 JSON 就用預設訊息 */
+        }
+        reject(new Error(message));
+      };
+
+      xhr.onerror = () => reject(new Error("網路錯誤,上傳失敗"));
+      xhr.send(file);
+    });
+  }
+
+  // 用 Drive 的 resumable upload:先建立上傳工作階段,再把檔案內容 PUT 上去(帶進度回報)
   async function uploadToDrive(file, token) {
     const initRes = await fetch(
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name",
@@ -345,16 +390,8 @@ if (!hasClientId) {
     const uploadUrl = initRes.headers.get("Location");
     if (!uploadUrl) throw new Error("沒有取得上傳網址");
 
-    const putRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-    if (!putRes.ok) {
-      const err = await putRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || `上傳檔案失敗 (${putRes.status})`);
-    }
-    return putRes.json();
+    setUploadProgress(0);
+    return putFileWithProgress(uploadUrl, file);
   }
 
   // 先登入(乾淨的點擊,不會被 Chrome 擋),登入成功後才打開選檔案視窗
@@ -395,9 +432,11 @@ if (!hasClientId) {
         await uploadToDrive(file, accessToken);
       }
       setUploadStatus(`上傳完成:${file.name}`);
+      setUploadProgress(null);
       await loadAll();
     } catch (err) {
       setUploadStatus(`上傳失敗:${err.message}`, true);
+      setUploadProgress(null);
       console.error(err);
     }
   });
