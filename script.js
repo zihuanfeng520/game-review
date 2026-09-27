@@ -357,7 +357,20 @@ if (!hasClientId) {
     return putRes.json();
   }
 
-  uploadButton.addEventListener("click", () => uploadInput.click());
+  // 先登入(乾淨的點擊,不會被 Chrome 擋),登入成功後才打開選檔案視窗
+  uploadButton.addEventListener("click", async () => {
+    try {
+      if (!accessToken) {
+        setUploadStatus("請用你的 Google 帳號登入…");
+        await requestAccessToken();
+        setUploadStatus("");
+      }
+      uploadInput.click();
+    } catch (err) {
+      setUploadStatus(`登入失敗:${err.message}`, true);
+      console.error(err);
+    }
+  });
 
   uploadInput.addEventListener("change", async () => {
     const file = uploadInput.files[0];
@@ -370,15 +383,16 @@ if (!hasClientId) {
     }
 
     try {
-      setUploadStatus("請用你的 Google 帳號登入…");
-      const token = accessToken || (await requestAccessToken());
       setUploadStatus(`正在上傳:${file.name}…`);
+      if (!accessToken) throw new Error("尚未登入");
       try {
-        await uploadToDrive(file, token);
+        await uploadToDrive(file, accessToken);
       } catch (err) {
-        // token 可能過期,重新登入一次再試一次
-        const freshToken = await requestAccessToken();
-        await uploadToDrive(file, freshToken);
+        // token 可能過期,重新登入一次再試一次(這裡的彈窗一樣是乾淨點擊觸發,不會被擋)
+        setUploadStatus("登入逾期,請重新登入…");
+        await requestAccessToken();
+        setUploadStatus(`正在上傳:${file.name}…`);
+        await uploadToDrive(file, accessToken);
       }
       setUploadStatus(`上傳完成:${file.name}`);
       await loadAll();
