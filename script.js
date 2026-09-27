@@ -275,4 +275,118 @@ document.getElementById("search-input").addEventListener("input", (e) => {
   render();
 });
 
+// ---------- 上傳影片(用擁有者自己的 Google 帳號 OAuth 登入) ----------
+// 需要 config.js 額外提供 CLIENT_ID(Google Cloud Console 建立的 OAuth 用戶端 ID)
+// 沒有設定 CLIENT_ID 的話,直接隱藏上傳按鈕,網站其他功能照常運作
+const uploadButton = document.getElementById("upload-button");
+const uploadInput = document.getElementById("upload-input");
+const uploadStatus = document.getElementById("upload-status");
+
+const hasClientId = typeof CLIENT_ID !== "undefined" && CLIENT_ID;
+
+if (!hasClientId) {
+  uploadButton.hidden = true;
+} else {
+  let tokenClient = null;
+  let accessToken = null;
+
+  function getTokenClient() {
+    if (!tokenClient) {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: "https://www.googleapis.com/auth/drive.file",
+        callback: () => {}, // 每次請求時會覆寫成當下要用的 callback
+      });
+    }
+    return tokenClient;
+  }
+
+  // 跳出 Google 登入/授權畫面,拿到可以呼叫 Drive API 的 access token
+  function requestAccessToken() {
+    return new Promise((resolve, reject) => {
+      const client = getTokenClient();
+      client.callback = (resp) => {
+        if (resp.error) {
+          reject(new Error("Google 登入失敗或已取消"));
+          return;
+        }
+        accessToken = resp.access_token;
+        resolve(accessToken);
+      };
+      client.requestAccessToken();
+    });
+  }
+
+  function setUploadStatus(text, isError) {
+    uploadStatus.hidden = !text;
+    uploadStatus.textContent = text;
+    uploadStatus.classList.toggle("error", Boolean(isError));
+  }
+
+  // 用 Drive 的 resumable upload:先建立上傳工作階段,再把檔案內容 PUT 上去
+  async function uploadToDrive(file, token) {
+    const initRes = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json; charset=UTF-8",
+          "X-Upload-Content-Type": file.type,
+          "X-Upload-Content-Length": String(file.size),
+        },
+        body: JSON.stringify({ name: file.name, parents: [ROOT_FOLDER_ID] }),
+      }
+    );
+    if (!initRes.ok) {
+      const err = await initRes.json().catch(() => ({}));
+      throw new Error(err.error?.message || `建立上傳工作階段失敗 (${initRes.status})`);
+    }
+    const uploadUrl = initRes.headers.get("Location");
+    if (!uploadUrl) throw new Error("沒有取得上傳網址");
+
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!putRes.ok) {
+      const err = await putRes.json().catch(() => ({}));
+      throw new Error(err.error?.message || `上傳檔案失敗 (${putRes.status})`);
+    }
+    return putRes.json();
+  }
+
+  uploadButton.addEventListener("click", () => uploadInput.click());
+
+  uploadInput.addEventListener("change", async () => {
+    const file = uploadInput.files[0];
+    uploadInput.value = ""; // 清空,讓同一支檔案還能再選一次
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      setUploadStatus("只能上傳影片檔案", true);
+      return;
+    }
+
+    try {
+      setUploadStatus("請用你的 Google 帳號登入…");
+      const token = accessToken || (await requestAccessToken());
+      setUploadStatus(`正在上傳:${file.name}…`);
+      try {
+        await uploadToDrive(file, token);
+      } catch (err) {
+        // token 可能過期,重新登入一次再試一次
+        const freshToken = await requestAccessToken();
+        await uploadToDrive(file, freshToken);
+      }
+      setUploadStatus(`上傳完成:${file.name}`);
+      await loadAll();
+    } catch (err) {
+      setUploadStatus(`上傳失敗:${err.message}`, true);
+      console.error(err);
+    }
+  });
+}
+
 loadAll();
