@@ -5,3 +5,4 @@
 
 const API_KEY = "AIzaSyBgKXf0FTRlHgzHfPEIMeNngUTGWQV7QXc";
 const ROOT_FOLDER_ID = "1AotLx-mN-CpzhMwLM1gEyI27vNk-snMe";
+const CLIENT_ID = "1000069601924-jueec25n6j7qcsmc72r60pacubt494d2.apps.googleusercontent.com";
