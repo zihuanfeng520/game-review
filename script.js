@@ -187,8 +187,12 @@ function render() {
   }
 }
 
-// 相容各瀏覽器前綴,請求把該元素(連同裡面的 iframe)全螢幕顯示
+// 相容各瀏覽器前綴,請求把該元素全螢幕顯示;iOS Safari 的 <video> 要用 webkitEnterFullscreen
 function requestFullscreenOn(el) {
+  if (el.webkitEnterFullscreen) {
+    el.webkitEnterFullscreen();
+    return;
+  }
   const req =
     el.requestFullscreen ||
     el.webkitRequestFullscreen ||
@@ -204,7 +208,7 @@ function largeThumbnail(url) {
   return url.replace(/=s\d+$/, "=s640");
 }
 
-// 卡片會先顯示縮圖(有的話)或黑底 + 播放圖示,點擊後才建立 iframe 播放器
+// 卡片會先顯示縮圖(有的話)或黑底 + 播放圖示,點擊後才建立原生 <video> 播放器
 function buildVideoCard(video) {
   const card = document.createElement("div");
   card.className = "video-card";
@@ -240,28 +244,37 @@ function buildVideoCard(video) {
     frame.appendChild(chip);
   }
 
-  // 建立播放器 iframe,取代縮圖/播放圖示
+  // 建立原生 <video> 播放器,取代縮圖/播放圖示——直接吃檔案內容,不是嵌入 Drive 的網頁,
+  // 介面完全是我們自己的,一次點擊直接播放
   const embedPlayer = () => {
     frame.classList.add("is-playing");
-    frame.innerHTML = `<iframe src="https://drive.google.com/file/d/${video.id}/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>`;
+    frame.innerHTML = "";
+    const videoEl = document.createElement("video");
+    videoEl.className = "video-el";
+    videoEl.src = `https://www.googleapis.com/drive/v3/files/${video.id}?alt=media&key=${API_KEY}`;
+    videoEl.controls = true;
+    videoEl.autoplay = true;
+    videoEl.playsInline = true; // 明確告知不要自動搶去系統全螢幕播放器
+    frame.appendChild(videoEl);
+    return videoEl;
   };
 
-  // 縮圖、中間播放圖示:在原本的小窗格內嵌入播放,大小、位置都跟卡片一致
+  // 縮圖、中間播放圖示:在原本的小窗格內播放,大小、位置都跟卡片一致
   frame.addEventListener("click", embedPlayer, { once: true });
 
   const title = document.createElement("p");
   title.className = "video-title";
   title.textContent = video.name;
 
-  // 下方這顆按鈕:直接全螢幕播放
+  // 下方這顆按鈕:直接全螢幕播放(對 <video> 本身呼叫全螢幕,連 iOS 的相容模式都吃得到)
   const button = document.createElement("button");
   button.className = "play-button";
   button.textContent = "⛶ 全螢幕播放";
   button.addEventListener(
     "click",
     () => {
-      embedPlayer();
-      requestFullscreenOn(frame);
+      const videoEl = embedPlayer();
+      requestFullscreenOn(videoEl);
     },
     { once: true }
   );
