@@ -251,30 +251,15 @@ main {
   border-top: none;
 }
 
-.video-frame iframe {
+.video-el {
   width: 100%;
   height: 100%;
-  border: 0;
+  object-fit: contain;
+  background: #000;
 }
 
 .video-frame.is-playing::before,
 .video-frame.is-playing::after {
-  display: none;
-}
-
-.video-frame:fullscreen,
-.video-frame:-webkit-full-screen,
-.video-frame:-moz-full-screen {
-  aspect-ratio: auto;
-  width: 100vw;
-  height: 100vh;
-  background: #000;
-}
-
-.video-frame:fullscreen::before,
-.video-frame:fullscreen::after,
-.video-frame:-webkit-full-screen::before,
-.video-frame:-webkit-full-screen::after {
   display: none;
 }
 
