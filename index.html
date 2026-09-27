@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <header class="site-header">
@@ -14,11 +15,17 @@
       <span class="brand-dot" aria-hidden="true"></span>
       <h1>遊戲復盤</h1>
     </div>
-    <div class="search-box">
-      <span class="search-icon" aria-hidden="true">›</span>
-      <input id="search-input" type="search" placeholder="搜尋片名…" autocomplete="off">
+    <div class="header-actions">
+      <button id="upload-button" class="upload-button" type="button">＋ 上傳影片</button>
+      <input id="upload-input" type="file" accept="video/*" hidden>
+      <div class="search-box">
+        <span class="search-icon" aria-hidden="true">›</span>
+        <input id="search-input" type="search" placeholder="搜尋片名…" autocomplete="off">
+      </div>
     </div>
   </header>
+
+  <p id="upload-status" class="upload-status" hidden></p>
 
   <main id="date-groups">
     <p class="status">正在讀取 Google Drive…</p>
