@@ -62,6 +62,42 @@ body {
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.upload-button {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 9px 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.upload-button:hover {
+  background: var(--accent);
+  color: #0b0d09;
+}
+
+.upload-status {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 10px 32px 0;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+.upload-status.error {
+  color: var(--rec);
+}
+
 .search-box {
   position: relative;
   display: flex;
